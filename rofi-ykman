@@ -14,13 +14,17 @@ print_usage() {
     echo
 }
 
+notify() {
+    if hash notify-send 2>/dev/null
+    then
+        notify-send "rofi-ykman" "$1" -a "rofi-ykman"
+    fi
+}
+
 check_yubikey() {
     if [ ! "$(ykman info)" ]
     then
-        if hash notify-send 2>/dev/null
-        then
-            notify-send "rofi-ykman" "YubiKey not detected." -a "rofi-ykman"
-        fi
+        notify "YubiKey not detected."
         exit 1
     fi
 }
@@ -64,12 +68,13 @@ main() {
         *) command=$default_command ;;
     esac
 
+    notify "Touch your YubiKey to generate TOTP for $account"
     code=$(ykman oath accounts code "$account")
     IFS=', ' read -r -a code <<< "$code"
 
     case $command in
-        clipboard) echo -n "${code[-1]}" | clipboard;;
-        type) echo -n "${code[-1]}" | type;;
+        clipboard) echo -n "${code[-1]}" | clipboard; notify "Code copied to clipboard";;
+        type) echo -n "${code[-1]}" | type; notify "Code generated";;
     esac
 }
 
