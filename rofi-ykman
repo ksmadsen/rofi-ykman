@@ -14,16 +14,20 @@ print_usage() {
     echo
 }
 
+notify() {
+    if hash notify-send 2>/dev/null
+    then
+        notify-send "rofi-ykman" "$1" -a "rofi-ykman"
+    fi
+}
+
 choose_yubikey() {
     yubikeys=$(ykman list)
 
     if [[ "$yubikeys" = "" ]]
     then
-        if hash notify-send 2>/dev/null
-        then
-            notify-send "rofi-ykman" "YubiKey not detected." -a "rofi-ykman"
-        fi
-        return 1
+        notify "YubiKey not detected."
+        exit 1
     fi
 
     if [[ $(wc -l <<< "$yubikeys") > 1 ]]
@@ -80,12 +84,13 @@ main() {
         *) command=$default_command ;;
     esac
 
+    notify "Touch your YubiKey to generate TOTP for $account"
     code=$(ykman --device $serial oath accounts code "$account")
     IFS=', ' read -r -a code <<< "$code"
 
     case $command in
-        clipboard) echo -n "${code[-1]}" | clipboard;;
-        type) echo -n "${code[-1]}" | type;;
+        clipboard) echo -n "${code[-1]}" | clipboard; notify "Code copied to clipboard";;
+        type) echo -n "${code[-1]}" | type; notify "Code generated";;
     esac
 }
 
