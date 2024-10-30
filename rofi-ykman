@@ -17,7 +17,12 @@ print_usage() {
 notify() {
     if hash notify-send 2>/dev/null
     then
-        notify-send "rofi-ykman" "$1" -a "rofi-ykman"
+        if [ -z "$2" ];
+        then
+            notify-send "rofi-ykman" "$1" -a "rofi-ykman" -p
+        else
+            notify-send "rofi-ykman" "$1" -a "rofi-ykman" -r "$2"
+        fi
     fi
 }
 
@@ -26,7 +31,7 @@ choose_yubikey() {
 
     if [[ "$yubikeys" = "" ]]
     then
-        notify "YubiKey not detected."
+        notify "YubiKey not detected." > /dev/null
         exit 1
     fi
 
@@ -84,13 +89,13 @@ main() {
         *) command=$default_command ;;
     esac
 
-    notify "Touch your YubiKey to generate TOTP for $account"
+    notifyid=$(notify "Touch your YubiKey to generate TOTP for $account")
     code=$(ykman --device $serial oath accounts code "$account")
     IFS=', ' read -r -a code <<< "$code"
 
     case $command in
-        clipboard) echo -n "${code[-1]}" | clipboard; notify "Code copied to clipboard";;
-        type) echo -n "${code[-1]}" | type; notify "Code generated";;
+        clipboard) echo -n "${code[-1]}" | clipboard; notify "Code copied to clipboard" "$notifyid";;
+        type) echo -n "${code[-1]}" | type; notify "Code generated" "$notifyid";;
     esac
 }
 
