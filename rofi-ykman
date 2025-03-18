@@ -14,15 +14,30 @@ print_usage() {
     echo
 }
 
-check_yubikey() {
-    if [ ! "$(ykman info)" ]
+choose_yubikey() {
+    yubikeys=$(ykman list)
+
+    if [[ "$yubikeys" = "" ]]
     then
         if hash notify-send 2>/dev/null
         then
             notify-send "rofi-ykman" "YubiKey not detected." -a "rofi-ykman"
         fi
-        exit 1
+        return 1
     fi
+
+    if [[ $(wc -l <<< "$yubikeys") > 1 ]]
+    then
+        yubikey=$(echo "$yubikeys" | rofi -dmenu -i -p "Select YubiKey")
+        if [ $? -eq 1 ]
+        then
+            return 2
+        fi
+    else
+        yubikey=$yubikeys
+    fi
+    serial=$(echo $yubikey | grep -oP 'Serial: \K\d+')
+    echo $serial
 }
 
 clipboard () {
@@ -48,7 +63,8 @@ type="Alt+1"
 clipboard="Alt+2"
 
 main() {
-    accounts=$(ykman oath accounts list)
+    serial=$1
+    accounts=$(ykman --device $serial oath accounts list)
 
     shortcuts=(
         -kb-custom-1 "$type"
@@ -64,7 +80,7 @@ main() {
         *) command=$default_command ;;
     esac
 
-    code=$(ykman oath accounts code "$account")
+    code=$(ykman --device $serial oath accounts code "$account")
     IFS=', ' read -r -a code <<< "$code"
 
     case $command in
@@ -80,5 +96,9 @@ case $default_command in
     *) print_usage; exit 1;;
 esac
 
-check_yubikey
-main
+serial=$(choose_yubikey)
+case $? in
+    1) exit 1 ;;
+    2) exit ;;
+esac
+main $serial
